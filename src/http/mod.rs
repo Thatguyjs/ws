@@ -72,7 +72,7 @@ impl HttpServer {
 
         for stream in self.listener.incoming() {
             if client_count.load(Ordering::SeqCst) >= self.options.client_limit {
-                continue;
+                continue; // Reject connections if the limit has been reached
             }
 
             if let Ok(stream) = stream {
@@ -85,12 +85,14 @@ impl HttpServer {
                     let t_stream = stream.try_clone().unwrap();
                     let mut client = Client::new(stream, opts);
 
-                    if let Some(time_open) = client.accept() {
+                    if let Some(timeout) = client.accept() {
+                        // Close the connection after the keep-alive timeout
                         thread::spawn(move || {
-                            thread::sleep(time_open);
+                            thread::sleep(timeout);
                             let _ = t_stream.shutdown(std::net::Shutdown::Both);
                         });
 
+                        // Keep accepting requests until the socket is closed
                         loop {
                             if client.is_closed() {
                                 cli_count.fetch_sub(1, Ordering::SeqCst);

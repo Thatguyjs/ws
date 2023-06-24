@@ -58,6 +58,7 @@ impl<'a> Response<'a> {
         self
     }
 
+    #[allow(dead_code)]
     pub fn set_headers<S: ToString + Clone>(&mut self, headers: &[(S, S)]) -> &mut Self {
         for header in headers {
             self.set_header(header.0.clone(), header.1.clone());

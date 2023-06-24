@@ -2,6 +2,7 @@ use super::Method;
 use std::{fmt, net::TcpStream, io::{self, Read}, error, collections::HashMap};
 
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub enum ErrorKind {
     IOError,

@@ -22,6 +22,7 @@ impl TcpListener {
         ))
     }
 
+    #[allow(dead_code)]
     pub fn accept(&self) -> io::Result<(net::TcpStream, SocketAddr)> {
         if self.running.load(Ordering::SeqCst) == false {
             Err(io::Error::new(io::ErrorKind::Other, "Server Closed"))
