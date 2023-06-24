@@ -3,8 +3,8 @@ pub mod request;
 pub mod response;
 
 use client::Client;
-use super::{listener::*, threadpool::*};
-use std::{net::SocketAddr, io, path::PathBuf, sync::Arc, thread};
+use super::listener::*;
+use std::{net::SocketAddr, io, path::PathBuf, sync::{Arc, atomic::{Ordering, AtomicUsize}}, thread, time::Duration};
 
 
 #[derive(Debug)]
@@ -12,7 +12,8 @@ pub struct HttpOptions {
     pub hosts: Vec<SocketAddr>,
     pub directory: PathBuf,
     pub index_file: String,
-    pub client_limit: usize
+    pub client_limit: usize,
+    pub keep_alive: Duration
 }
 
 impl Default for HttpOptions {
@@ -21,7 +22,8 @@ impl Default for HttpOptions {
             hosts: Vec::new(),
             directory: PathBuf::from("../2048/"),
             index_file: String::from("index.html"),
-            client_limit: 128
+            client_limit: 128,
+            keep_alive: Duration::from_secs(10)
         }
     }
 }
@@ -50,9 +52,6 @@ pub struct HttpServer {
     options: Arc<HttpOptions>,
     listener: TcpListener,
     // TODO: tls: Option<()>,
-    clients: Vec<Client>,
-    client_rc: Receiver<()>,
-    pool: ThreadPool
 }
 
 impl HttpServer {
@@ -63,31 +62,46 @@ impl HttpServer {
             Self {
                 options: Arc::new(options.unwrap_or(HttpOptions::default())),
                 listener,
-                clients: Vec::new(),
-                pool: ThreadPool::new(4)
             },
             shutdown
         ))
     }
 
-    pub fn run(&mut self) -> io::Result<()> {
-        thread::spawn(move || {
-
-        });
+    pub fn run(&self) {
+        let client_count = Arc::new(AtomicUsize::new(0));
 
         for stream in self.listener.incoming() {
-            if let Ok(stream) = stream {
-                if self.clients.len() >= self.options.client_limit {
-                    let _ = stream.shutdown(std::net::Shutdown::Both);
-                }
+            if client_count.load(Ordering::SeqCst) >= self.options.client_limit {
+                continue;
+            }
 
-                let id = self.clients.len();
-                if let Ok(client) = Client::new(id, stream, self.options.clone()) {
-                    self.clients.push(client);
-                }
+            if let Ok(stream) = stream {
+                client_count.fetch_add(1, Ordering::SeqCst);
+
+                let opts = self.options.clone();
+                let cli_count = client_count.clone();
+
+                thread::spawn(move || {
+                    let t_stream = stream.try_clone().unwrap();
+                    let mut client = Client::new(stream, opts);
+
+                    if let Some(time_open) = client.accept() {
+                        thread::spawn(move || {
+                            thread::sleep(time_open);
+                            let _ = t_stream.shutdown(std::net::Shutdown::Both);
+                        });
+
+                        loop {
+                            if client.is_closed() {
+                                cli_count.fetch_sub(1, Ordering::SeqCst);
+                                break;
+                            }
+
+                            client.accept();
+                        }
+                    }
+                });
             }
         }
-
-        Ok(())
     }
 }

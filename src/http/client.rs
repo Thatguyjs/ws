@@ -1,5 +1,5 @@
 use super::{HttpOptions, request::Request, response::*};
-use std::{net::TcpStream, time::{Instant, Duration}, thread, sync::Arc, io, path::PathBuf, fs};
+use std::{net::TcpStream, time::Duration, sync::Arc, path::PathBuf, fs};
 
 
 fn mime_from_path(path: &PathBuf) -> Option<&'static str> {
@@ -22,54 +22,41 @@ fn mime_from_path(path: &PathBuf) -> Option<&'static str> {
 
 
 pub struct Client {
-    id: usize,
     stream: TcpStream,
-    started: Instant,
-    timeout: Option<Duration>
+    options: Arc<HttpOptions>,
+    open: bool
 }
 
 impl Client {
-    pub fn new(id: usize, stream: TcpStream, options: Arc<HttpOptions>) -> io::Result<Self> {
-        let t_stream = stream.try_clone()?;
-
-        thread::spawn(move || {
-            let mut buf = [0u8; 1];
-
-            loop {
-                if let Ok(_) = t_stream.peek(&mut buf) {
-
-                }
-            }
-        });
-
-        Ok(Self {
-            id,
+    pub fn new(stream: TcpStream, options: Arc<HttpOptions>) -> Self {
+        Self {
             stream,
-            started: Instant::now(),
-            timeout: None
-        })
+            options,
+            open: true
+        }
     }
 
-    pub fn set_timeout(&mut self, duration: Duration) {
-        self.timeout = Some(duration);
-    }
+    pub fn accept(&mut self) -> Option<Duration> {
+        if !self.open {
+            println!("Called accept() when closed!");
+            return None;
+        }
 
-    fn handle_stream(options: Arc<HttpOptions>, mut stream: TcpStream) {
-        match Request::from_stream(&stream) {
+        match Request::from_stream(&self.stream) {
             Ok(mut request) => {
                 if !request.path.rsplit_once('/').unwrap().1.contains('.') {
                     if !request.path.ends_with('/') {
                         request.path.push('/');
                     }
-                    request.path.push_str(&options.index_file);
+                    request.path.push_str(&self.options.index_file);
                 }
 
-                let mut path = options.directory.clone();
+                let mut path = self.options.directory.clone();
                 path.push(&request.path[1..]);
 
                 match fs::read(&path) {
                     Ok(body) => {
-                        let mut response = Response::new(&mut stream, Status::Ok);
+                        let mut response = Response::new(&mut self.stream, Status::Ok);
 
                         if let Some(mime) = mime_from_path(&path) {
                             response.set_header("Content-Type", mime);
@@ -78,11 +65,26 @@ impl Client {
                         let _ = response.send(&body);
                     },
                     Err(_) => {
-                        let _ = Response::new(&mut stream, Status::NotFound).send(b"404 Not Found");
+                        let _ = Response::new(&mut self.stream, Status::NotFound).send(b"404 Not Found");
                     }
                 }
+
+                if request.headers.get("connection") == Some(&"keep-alive".into()) {
+                    Some(self.options.keep_alive.clone())
+                }
+                else {
+                    None
+                }
             },
-            _ => ()
+
+            _ => {
+                self.open = false;
+                None
+            }
         }
+    }
+
+    pub fn is_closed(&self) -> bool {
+        !self.open
     }
 }

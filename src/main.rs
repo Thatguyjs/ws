@@ -49,5 +49,5 @@ fn main() {
         shutdown.shutdown().unwrap();
     }).expect("Failed to set Ctrl-C handler");
 
-    server.run().expect("Failed to start server");
+    server.run();
 }
