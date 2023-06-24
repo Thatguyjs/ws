@@ -20,7 +20,7 @@ impl Default for HttpOptions {
     fn default() -> Self {
         Self {
             hosts: Vec::new(),
-            directory: PathBuf::from("../2048/"),
+            directory: PathBuf::from("./src"),
             index_file: String::from("index.html"),
             client_limit: 128,
             keep_alive: Duration::from_secs(10)
