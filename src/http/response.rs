@@ -1,7 +1,7 @@
 use std::{net::TcpStream, collections::HashMap, io::{self, Write}};
 
 
-fn camel_case(slice: &str) -> String {
+fn to_camel_case(slice: &str) -> String {
     let mut want_upper = true;
     let mut result = String::new();
 
@@ -28,8 +28,8 @@ pub enum Status {
 impl ToString for Status {
     fn to_string(&self) -> String {
         match self {
-            Status::Ok => "200",
-            Status::NotFound => "404"
+            Status::Ok => "200 Ok",
+            Status::NotFound => "404 Not Found"
         }.into()
     }
 }
@@ -52,7 +52,7 @@ impl<'a> Response<'a> {
     }
 
     pub fn set_header<S: ToString>(&mut self, header: S, value: S) -> &mut Self {
-        let header = camel_case(&header.to_string());
+        let header = to_camel_case(&header.to_string());
         self.headers.insert(header, value.to_string());
 
         self
@@ -68,7 +68,7 @@ impl<'a> Response<'a> {
     }
 
     pub fn send(&mut self, body: &[u8]) -> io::Result<()> {
-        let statusline = format!("HTTP/1.1 {} {:?}\r\n", self.status.to_string(), self.status);
+        let statusline = format!("HTTP/1.1 {}\r\n", self.status.to_string());
         self.stream.write(statusline.as_bytes())?;
 
         self.set_default_headers(body.len());
