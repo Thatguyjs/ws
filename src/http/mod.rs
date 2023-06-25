@@ -1,5 +1,5 @@
 pub mod client;
-mod options;
+pub mod options;
 pub mod request;
 pub mod response;
 

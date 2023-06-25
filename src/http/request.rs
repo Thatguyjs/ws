@@ -1,16 +1,14 @@
 use super::Method;
-use std::{fmt, net::TcpStream, io::{self, Read}, error, collections::HashMap};
+use std::{fmt, net::TcpStream, io::{self, Read}, collections::HashMap};
 
 
-#[allow(dead_code)]
 #[derive(Debug)]
 pub enum ErrorKind {
     IOError,
     InvalidData,
     BadFormat,
     NoData,
-    TooLarge,
-    Other
+    TooLarge
 }
 
 
@@ -44,7 +42,7 @@ impl From<io::Error> for Error {
     }
 }
 
-impl error::Error for Error {}
+impl std::error::Error for Error {}
 
 
 #[derive(Debug)]
