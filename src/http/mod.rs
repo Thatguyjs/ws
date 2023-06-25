@@ -1,32 +1,12 @@
 pub mod client;
+mod options;
 pub mod request;
 pub mod response;
 
 use client::Client;
+pub use options::HttpOptions;
 use super::listener::*;
-use std::{net::SocketAddr, io, path::PathBuf, sync::{Arc, atomic::{Ordering, AtomicUsize}}, thread, time::Duration};
-
-
-#[derive(Debug)]
-pub struct HttpOptions {
-    pub hosts: Vec<SocketAddr>,
-    pub directory: PathBuf,
-    pub index_file: String,
-    pub client_limit: usize,
-    pub keep_alive: Duration
-}
-
-impl Default for HttpOptions {
-    fn default() -> Self {
-        Self {
-            hosts: Vec::new(),
-            directory: PathBuf::from("./src"),
-            index_file: String::from("index.html"),
-            client_limit: 128,
-            keep_alive: Duration::from_secs(10)
-        }
-    }
-}
+use std::{net::SocketAddr, io, sync::{Arc, atomic::{Ordering, AtomicUsize}}, thread};
 
 
 #[derive(Debug)]
