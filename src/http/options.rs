@@ -76,6 +76,30 @@ pub struct HttpOptions {
 }
 
 impl HttpOptions {
+    pub fn find_config() -> Option<PathBuf> {
+        let locs = vec![
+            Some(String::from('.')),
+            std::env::var("HOME").ok()
+        ];
+
+        // Collect paths
+        let mut paths = Vec::new();
+
+        for loc in locs {
+            if let Some(s) = loc {
+                if let Ok(path) = PathBuf::from(s).canonicalize() {
+                    paths.push(path.join(".wsconfig"));
+                }
+            }
+        }
+
+        // Test paths to find a config file
+        let mut paths = paths.into_iter()
+            .filter(|path| fs::File::open(path).is_ok());
+
+        paths.next()
+    }
+
     pub fn parse_file<P: AsRef<std::path::Path>>(path: P) -> Result<Self, Error> {
         let data = fs::read_to_string(path)?;
 
@@ -83,7 +107,7 @@ impl HttpOptions {
         let mut options = Self::default();
 
         for line in data.lines() {
-            let line = line.split_once('#').unwrap_or((line.trim(), "")).0;
+            let line = line.split_once('#').unwrap_or((line, "")).0.trim();
 
             if line.is_empty() {
                 continue;
