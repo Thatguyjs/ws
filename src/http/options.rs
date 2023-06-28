@@ -129,6 +129,11 @@ impl HttpOptions {
             }
         }
 
+        // Remove the default host address if others are specified
+        if options.hosts.len() > 1 {
+            options.hosts.remove(0);
+        }
+
         Ok(options)
     }
 

@@ -18,11 +18,16 @@ fn main() {
     };
 
     // Parse config & start server, provide Ctrl-C handling
-    let (server, mut shutdown) = http::HttpServer::bind("127.0.0.1:8080".parse().unwrap(), Some(opts)).unwrap();
+    let hosts = opts.hosts.clone();
+    let (server, mut shutdown) = http::HttpServer::bind(hosts.as_slice(), opts).unwrap();
 
     ctrlc::set_handler(move || {
         shutdown.shutdown().unwrap();
     }).expect("Failed to set Ctrl-C handler");
+
+    for host in hosts {
+        println!("Listening at {host:?}");
+    }
 
     server.run();
 }

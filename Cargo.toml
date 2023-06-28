@@ -2,7 +2,7 @@
 name = "ws"
 description = "A simple command-line webserver utility"
 authors = ["Thatguyjs"]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 
 [dependencies]
