@@ -1,3 +1,4 @@
+use clap::arg;
 use std::{fmt, net::{SocketAddr, AddrParseError}, path::PathBuf, time::Duration, io, fs, num::ParseIntError, collections::HashMap};
 
 
@@ -135,6 +136,76 @@ impl HttpOptions {
         }
 
         Ok(options)
+    }
+
+    pub fn with_cli(mut self) -> Self {
+        let cli = clap::Command::new("ws")
+                    .args([
+                        arg!(-d --dir <PATH> "Hosted directory"),
+                        arg!(-i --index <FILENAME> "Index file, served when a directory is requested"),
+                        arg!(-c --clients <COUNT> "Maximum amount of allowed clients at once"),
+                        arg!(-k --"keep-alive" <TIMEOUT> "Timeout in seconds of keep-alive connections"),
+                        arg!(-H --host <ADDRESS> ... "Address to host a server at"),
+                        // arg!(-r --redirect <FROM> <TO> "Redirect requests to different locations"),
+                        // arg!(-m --map <FROM> <TO> "Map filepaths to different locations"),
+                        // arg!(-f --forward <PATH> <ADDRESS> "Forward requests to another server")
+                    ]).get_matches();
+
+        // [defaults]
+        if let Some(dir) = cli.get_one::<String>("dir") {
+            self.directory = dir.into();
+        }
+        if let Some(index) = cli.get_one::<String>("index") {
+            self.index_file = index.clone();
+        }
+        if let Some(limit) = cli.get_one::<usize>("clients") {
+            self.client_limit = limit.clone();
+        }
+        if let Some(timeout) = cli.get_one::<u64>("keep-alive") {
+            self.keep_alive = Duration::from_secs(*timeout);
+        }
+
+        // [hosts]
+        if let Some(hosts) = cli.get_occurrences::<String>("host") {
+            for mut host in hosts {
+                if let Ok(host) = host.next().unwrap().parse::<SocketAddr>() {
+                    if !self.hosts.contains(&host) {
+                        self.hosts.push(host);
+                    }
+                }
+            }
+        }
+
+        /*
+        // [redirects]
+        if let Some(redirs) = cli.get_occurrences::<(String, String)>("redirect") {
+            for mut redir in redirs {
+                let redir = redir.next().unwrap();
+                self.redirects.insert(redir.0.clone(), redir.1.clone());
+            }
+        }
+
+        // [routes]
+        if let Some(routes) = cli.get_occurrences::<(String, String)>("map") {
+            for mut route in routes {
+                let route = route.next().unwrap();
+                self.routes.insert(PathBuf::from(&route.0), PathBuf::from(&route.1));
+            }
+        }
+
+        // [forward]
+        if let Some(forwarders) = cli.get_occurrences::<(String, String)>("forward") {
+            for mut fwd in forwarders {
+                let fwd = fwd.next().unwrap();
+
+                if let Ok(addr) = fwd.1.parse() {
+                    self.forward.insert(fwd.0.clone(), addr);
+                }
+            }
+        }
+        */
+
+        self
     }
 
     fn parse_line(options: &mut HttpOptions, section: &str, line: &str) -> Result<(), Error> {

@@ -10,10 +10,11 @@ fn main() {
             println!("Using config \"{}\" + CLI options", path.display());
             http::HttpOptions::parse_file(path)
                 .expect("Failed to parse config file")
+                .with_cli()
         },
         None => {
             println!("No config found. Fallback to defaults + CLI options");
-            http::HttpOptions::default()
+            http::HttpOptions::default().with_cli()
         }
     };
 
@@ -26,7 +27,7 @@ fn main() {
     }).expect("Failed to set Ctrl-C handler");
 
     for host in hosts {
-        println!("Listening at {host:?}");
+        println!("Listening at: {host:?}");
     }
 
     server.run();
