@@ -1,18 +1,19 @@
 mod config;
+mod routes;
 mod serve;
 
 use config::ServerConfig;
 use serve::ServeDir;
 use axum::{Router, response::Redirect, routing::get};
-
-
+use std::sync::Arc;
 
 
 #[tokio::main]
 async fn main() {
     let config = ServerConfig::load().unwrap();
+    let routes = Arc::new(config.routes);
 
-    let dir = ServeDir::new(config.dir);
+    let dir = ServeDir::new(config.dir, routes);
     let mut app = Router::new()
         .fallback_service(dir);
 

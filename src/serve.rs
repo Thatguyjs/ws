@@ -1,9 +1,10 @@
 // Service for serving static files
 
+use crate::routes::Routes;
 use axum::{http::{Request, Response}, body::Body};
 use percent_encoding::percent_decode;
 use tower::Service;
-use std::{path::{PathBuf, Path}, convert::Infallible, pin::Pin, future::Future, task::Poll, fs, io::ErrorKind};
+use std::{path::{PathBuf, Path}, convert::Infallible, pin::Pin, future::Future, task::Poll, fs, io::ErrorKind, sync::Arc};
 
 
 fn mime_from_path(path: &Path) -> Option<&str> {
@@ -24,13 +25,15 @@ fn mime_from_path(path: &Path) -> Option<&str> {
 
 #[derive(Clone)]
 pub struct ServeDir {
-    path: PathBuf
+    path: PathBuf,
+    routes: Arc<Routes>
 }
 
 impl ServeDir {
-    pub fn new<P: AsRef<Path>>(path: P) -> Self {
+    pub fn new<P: AsRef<Path>>(path: P, routes: Arc<Routes>) -> Self {
         ServeDir {
-            path: path.as_ref().to_owned()
+            path: path.as_ref().to_owned(),
+            routes
         }
     }
 }
@@ -62,6 +65,12 @@ impl<B> Service<Request<B>> for ServeDir {
         if path.is_dir() {
             path.push("index.html");
         }
+
+        // Re-route files
+        if let Some(route) = self.routes.get(&path) {
+            path = route;
+        }
+
 
         let result = async move {
             Ok(match fs::read(&path) {

@@ -1,5 +1,6 @@
 // Parse server configurations
 
+use crate::routes::Routes;
 use clap::{arg, Arg};
 use std::{path::PathBuf, collections::HashMap, net::{SocketAddr, ToSocketAddrs}};
 
@@ -9,7 +10,7 @@ pub struct ServerConfig {
     pub address: SocketAddr,
     pub dir: PathBuf,
     pub redirects: HashMap<String, String>,
-    pub routes: Vec<(String, String)>,
+    pub routes: Routes
     // TODO: Request forwarding
 }
 
@@ -19,7 +20,7 @@ impl Default for ServerConfig {
             address: "localhost:8080".to_socket_addrs().unwrap().next().unwrap(),
             dir: "./src".into(),
             redirects: HashMap::new(),
-            routes: Vec::new()
+            routes: Routes::new()
         }
     }
 }
@@ -54,7 +55,7 @@ impl ServerConfig {
         }
         if let Some(routes) = cli.get_occurrences::<String>("route") {
             for mut route in routes {
-                cfg.routes.push((route.next().unwrap().into(), route.next().unwrap().into()));
+                cfg.routes.add(route.next().unwrap().into(), route.next().unwrap().into());
             }
         }
 
