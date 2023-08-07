@@ -1,34 +1,21 @@
-mod http;
-mod listener;
+mod config;
+
+use config::ServerConfig;
+use axum::Router;
+use tower_http::services::ServeDir;
 
 
-fn main() {
-    let config_file = http::HttpOptions::find_config();
+#[tokio::main]
+async fn main() {
+    let config = ServerConfig::load().unwrap();
 
-    let opts = match config_file {
-        Some(path) => {
-            println!("Using config \"{}\" + CLI options", path.display());
-            http::HttpOptions::parse_file(path)
-                .expect("Failed to parse config file")
-                .with_cli()
-        },
-        None => {
-            println!("No config found. Fallback to defaults + CLI options");
-            http::HttpOptions::default().with_cli()
-        }
-    };
+    let dir = ServeDir::new(config.dir);
+    let app = Router::new().fallback_service(dir);
 
-    // Parse config & start server, provide Ctrl-C handling
-    let hosts = opts.hosts.clone();
-    let (server, mut shutdown) = http::HttpServer::bind(hosts.as_slice(), opts).unwrap();
+    println!("Listening at {:?}", config.address);
 
-    ctrlc::set_handler(move || {
-        shutdown.shutdown().unwrap();
-    }).expect("Failed to set Ctrl-C handler");
-
-    for host in hosts {
-        println!("Listening at: {host:?}");
-    }
-
-    server.run();
+    axum::Server::bind(&config.address)
+        .serve(app.into_make_service())
+        .await
+        .unwrap();
 }
