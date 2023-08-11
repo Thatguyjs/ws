@@ -1,33 +1,64 @@
 mod config;
-mod routes;
+mod http;
+mod path;
 mod serve;
 
 use config::ServerConfig;
+use http::{response::{Response, ResponseBuilder}, Status};
+use path::PathMatch;
 use serve::ServeDir;
-use axum::{Router, response::Redirect, routing::get};
-use std::sync::Arc;
+use httparse::Request;
+use std::{rc::Rc, collections::HashMap};
 
 
-#[tokio::main]
-async fn main() {
-    let config = ServerConfig::load().unwrap();
-    let routes = Arc::new(config.routes);
+struct State {
+    serve_dir: ServeDir,
+    redirects: HashMap<String, String>,
+    ignored: PathMatch<()>
+}
 
-    let dir = ServeDir::new(config.dir, routes);
-    let mut app = Router::new()
-        .fallback_service(dir);
 
-    for (from, to) in config.redirects {
-        app = app.route(&from, get(|| async {
-            let to = to; // Prevent it from thinking 'to' won't live long enough
-            Redirect::temporary(&to)
-        }));
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let config = ServerConfig::load()?;
+
+    println!("Hosting {:?} at \x1b[94mhttp://{:?}\x1b[0m", config.dir, config.address);
+
+    let state = State {
+        serve_dir: ServeDir::new(config.dir, config.routes),
+        redirects: config.redirects,
+        ignored: config.ignored
+    };
+
+    http::Server::bind(config.address)?
+        .serve_with_state(Box::new(handler), Rc::new(state))?;
+
+    Ok(())
+}
+
+
+fn handler(state: Rc<State>, req: Request) -> Option<Response> {
+    match req.method? {
+        "GET" => {
+            let path = req.path.unwrap();
+
+            if let Some(redir) = state.redirects.get(path) {
+                Some(ResponseBuilder::new()
+                    .status(Status::TemporaryRedirect)
+                    .header("Location", redir)
+                    .into_response())
+            }
+            else if state.ignored.contains(path) {
+                None
+            }
+            else {
+                Some(state.serve_dir.serve(path))
+            }
+        },
+        _ => {
+            Some(ResponseBuilder::new()
+                .status(Status::MethodNotAllowed)
+                .header("Allow", "GET")
+                .into_response())
+        }
     }
-
-    println!("Listening at {:?}", config.address);
-
-    axum::Server::bind(&config.address)
-        .serve(app.into_make_service())
-        .await
-        .unwrap();
 }
