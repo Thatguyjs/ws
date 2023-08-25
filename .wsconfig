@@ -1,7 +1,14 @@
-# Sample config file
+# Sample config file containing all possible configuration options
 
-[defaults]
-directory: "test/web"
+[global]
+address: "localhost:8080"
+dir: "test/web"
 
 [redirects]
-/home -> /
+"/" -> "/home"
+
+[ignore]
+"/some/folder/or/file"
+
+[routes]
+"/requested/path" -> "/local/path"
