@@ -1,7 +1,7 @@
 // Parse server configurations
 
 use crate::path::PathMatch;
-use clap::{arg, Arg};
+use clap::{arg, Arg, crate_authors, crate_version};
 use std::{path::PathBuf, collections::HashMap, net::{SocketAddr, ToSocketAddrs}, io::{ErrorKind, self}};
 
 
@@ -53,6 +53,8 @@ impl Default for ServerConfig {
 impl ServerConfig {
     fn load_cli(mut self) -> Result<Self, Box<dyn std::error::Error>> {
         let cli = clap::Command::new("ws")
+            .version(crate_version!())
+            .author(crate_authors!())
             .args([
                 arg!(-H --host <IP> "Server host address"),
                 arg!(-p --port <PORT> "Server host port"),
