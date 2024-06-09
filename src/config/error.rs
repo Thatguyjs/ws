@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ErrorKind {
     IOError,
     AddrError,
@@ -9,8 +9,8 @@ pub enum ErrorKind {
 
 #[derive(Debug)]
 pub struct Error {
-    kind: ErrorKind,
-    message: String
+    pub kind: ErrorKind,
+    pub message: String
 }
 
 impl Error {

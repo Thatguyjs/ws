@@ -92,7 +92,11 @@ impl ServerConfig {
     }
 
     fn load_file(mut self) -> error::Result<Self> {
-        let cfg = ConfigFile::read(".wsconfig")?;
+        let cfg = match ConfigFile::read(".wsconfig") {
+            Ok(c) => c,
+            Err(e) if e.kind == error::ErrorKind::IOError => return Ok(self),
+            Err(e) => return Err(e)
+        };
         let default = ServerConfig::default();
 
         for section in cfg.sections() {
